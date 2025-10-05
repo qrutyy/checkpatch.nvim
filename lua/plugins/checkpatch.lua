@@ -9,13 +9,14 @@ M.ns = vim.api.nvim_create_namespace("checkpatch")
 local function get_last_cfg()
     local cfg = vim.g.checkpatch_last_cfg
     if type(cfg) ~= "table" then
-        cfg = { strict = false, codespell = false, log = false, no_tree = false }
+        cfg = { strict = false, codespell = false, log = false, no_tree = false, quiet = false }
     end
     return cfg
 end
 
 local function set_last_cfg(cfg)
     vim.g.checkpatch_last_cfg = cfg
+	return cfg
 end
 
 function DiagnosticIndicator()
@@ -40,7 +41,7 @@ local function write_log(data)
     local log_dir = vim.fn.stdpath("data") .. "/checkpatch-logs"
     vim.fn.mkdir(log_dir, "p") -- create dir if missing
 
-    local filename = log_dir .. "/log_" .. os.date("%Y-%m-%d") .. ".txt"
+    local filename = log_dir .. "/log_" .. os.date("%Y-%m-%d_%H-%M") .. ".txt"
     local file, err = io.open(filename, "w")
     if not file then
         print("Error opening log file:", err)
@@ -104,29 +105,28 @@ local function install_checkpatch()
 end
 
 -- main execution function
-function M.run(checkpatch_path, strict_mode, codespell_mode, log_mode, no_tree_mode, quiet)
+function M.run(cfg)
     local buf = vim.api.nvim_get_current_buf()
     local file = vim.api.nvim_buf_get_name(buf)
     if file == "" then
-        if not quiet then
+        if not cfg.quiet then
             vim.notify("Buffer is empty. Running in current dir", vim.log.levels.INFO)
+            cfg.filem = true
         end
     end
 
-	if not checkpatch_path then
-		checkpatch_path = install_checkpatch()
-	end
+	local checkpatch_path = install_checkpatch()
 
 	local opts = "--terse "
-	if strict_mode then
+	if cfg.strict then
 		opts = opts .. "--strict "
 	end
 
-	if no_tree_mode then
+	if cfg.no_tree then
 		opts = opts .. "--no-tree "
 	end
 
-	if codespell_mode then
+	if cfg.codespell then
 		opts = opts .. "--codespell "
 	end
 
@@ -139,7 +139,7 @@ function M.run(checkpatch_path, strict_mode, codespell_mode, log_mode, no_tree_m
     local result = handle:read("*a")
     handle:close()
 
-	if log_mode then
+    if cfg.log then
 		write_log(result)
 	end
 
@@ -148,23 +148,29 @@ function M.run(checkpatch_path, strict_mode, codespell_mode, log_mode, no_tree_m
     -- Reset and set diagnostics (use default Neovim visuals)
     vim.diagnostic.reset(M.ns, buf)
     vim.diagnostic.set(M.ns, buf, diagnostics, {})
-    if not quiet and #diagnostics ~= 0 then
+    if not cfg.quiet and #diagnostics ~= 0 then
         vim.notify("checkpatch: " .. #diagnostics .. " issues found", vim.log.levels.INFO)
     end
 end
 
 vim.api.nvim_create_user_command("Checkpatch", function(opts)
+    local cfg = get_last_cfg()
+
     local args = opts.fargs
-	local checkpatch_path = vim.tbl_contains(args, "cppath")
-    local strict_mode = vim.tbl_contains(args, "strict")
-    local log_mode = vim.tbl_contains(args, "log")
-    local codespell_mode = vim.tbl_contains(args, "codespell")
-	local no_tree_mode = vim.tbl_contains(args, "no-tree")
+    if #args > 0 then
+        local overrides = {
+            strict = vim.tbl_contains(args, "strict"),
+            codespell = vim.tbl_contains(args, "codespell"),
+            log = vim.tbl_contains(args, "log"),
+            no_tree = vim.tbl_contains(args, "no-tree"),
+            quiet = vim.tbl_contains(args, "quiet"),
+            filem = vim.tbl_contains(args, "check-all"),
+        }
+        for k, v in pairs(overrides) do cfg[k] = v end
+        cfg = set_last_cfg(cfg)
+    end
 
-    -- remember last used flags
-    set_last_cfg({ strict = strict_mode, codespell = codespell_mode, log = log_mode, no_tree = no_tree_mode })
-
-    M.run(nil, strict_mode, codespell_mode, log_mode, no_tree_mode, false)
+    M.run(cfg)
 end, { desc = "Highlights the checkpatch msg in buf", nargs = "*" })
 
 -- auto-exec on .c safe
@@ -172,7 +178,8 @@ vim.api.nvim_create_autocmd("BufWritePost", {
     pattern = "*.c",
     callback = function ()
         local cfg = get_last_cfg()
-        M.run(false, cfg.strict, cfg.codespell, cfg.log, cfg.no_tree, true)
+        cfg.quiet = true
+        M.run(cfg)
 	end
 })
 
