@@ -1,33 +1,30 @@
 function parse_checkpatch(output)
     local diagnostics = {}
+
     for line in output:gmatch("[^\r\n]+") do
+        -- Match: <path>:<line>: <SEVERITY>: <message>
+        local lnum, sev, msg = line:match("^.-:(%d+):%s*([A-Z]+):%s*(.+)$")
+        if lnum and sev and msg then
+            local severity = (sev == "ERROR" and vim.diagnostic.severity.ERROR)
+                or (sev == "WARNING" and vim.diagnostic.severity.WARN)
+                or nil
 
-		-- WARNING msgs
-        local lnum, msg_w = line:match("[Ww]ARNING:%s*line%s*(%d+)%s*:%s*(.*)")
-        if lnum and msg_w then
-            table.insert(diagnostics, {
-                lnum = tonumber(lnum) - 1,
-                col = 0,
-                message = msg_w,
-                severity = vim.diagnostic.severity.WARN,
-                source = "checkpatch"
-            })
-			print("added msg:", msg_w)
-        end
-
-        -- ERROR msgs
-        local lnum_e, msg_e = line:match("[Ee]RROR:%s*line%s*(%d+)%s*:%s*(.*)")
-        if lnum_e and msg_e then
-            table.insert(diagnostics, {
-                lnum = tonumber(lnum_e) - 1,
-                col = 0,
-                message = msg_e,
-                severity = vim.diagnostic.severity.ERROR,
-                source = "checkpatch"
-            })
-			print("added msg:", msg_e)
+            if severity then
+                local lnum0 = math.max(tonumber(lnum) - 1, 0)
+                local start_col = 0
+                local end_col = 1
+                table.insert(diagnostics, {
+                    lnum = lnum0,
+                    end_lnum = lnum0,
+                    col = start_col,
+                    end_col = end_col,
+                    message = (msg:gsub("%s+$", "")),
+                    severity = severity,
+                    source = "checkpatch",
+                })
+            end
         end
     end
+
     return diagnostics
 end
-

@@ -1,1 +1,1 @@
-require("checkpatch")
+require("plugins.checkpatch")
