@@ -1,6 +1,42 @@
 require "parser"
 
 local M = {}
+local configured = false
+
+local default_config = {
+mappings = {
+run = { keys = "<leader>cp", desc = "Run checkpatch" },
+next = { keys = ",", desc = "Next checkpatch remark" },
+prev = { keys = "<", desc = "Prev checkpatch remark" },
+},
+}
+
+function M.setup(opts)
+if configured then return end
+local ok_tbl, tbl = pcall(require, "vim.tbl")
+local cfg
+if ok_tbl then
+cfg = vim.tbl_deep_extend("force", default_config, opts or {})
+else
+cfg = default_config
+end
+
+local map = vim.keymap.set
+local km = cfg.mappings or {}
+if km.run and km.run.keys then
+map("n", km.run.keys, ":Checkpatch<CR>", { silent = true, desc = km.run.desc or "Run checkpatch" })
+end
+if km.next and km.next.keys then
+map("n", km.next.keys, function() require("plugins.checkpatch").next_remark() end, { silent = true, desc = km.next.desc or "Next checkpatch remark" })
+end
+if km.prev and km.prev.keys then
+map("n", km.prev.keys, function() require("plugins.checkpatch").prev_remark() end, { silent = true, desc = km.prev.desc or "Prev checkpatch remark" })
+end
+
+configured = true
+end
+
+local current_index = 0
 
 -- namespace for diagnostics
 M.ns = vim.api.nvim_create_namespace("checkpatch")
@@ -19,16 +55,28 @@ local function set_last_cfg(cfg)
 	return cfg
 end
 
+table.filter = function(array, filterIterator)
+   local result = {}
+
+   for key, value in pairs(array) do
+      if filterIterator(value, key, array) then
+		 table.insert(result,value)
+	  end
+   end
+
+   return result
+end
+
 function DiagnosticIndicator()
     local counts = vim.diagnostic.get_count(0)
     
-    if not counts or (counts.error == 0 and counts.warn == 0) then
+    if not counts or (counts.remark == 0 and counts.warn == 0) then
         return "" 
     end
 
     local parts = {}
     if counts.error and counts.error > 0 then
-        table.insert(parts, " " .. counts.error)
+        table.insert(parts, " " .. counts.remark)
     end
     if counts.warn and counts.warn > 0 then
         table.insert(parts, " " .. counts.warn)
@@ -76,7 +124,7 @@ local function install_checkpatch()
         return true
     end
 
-    -- Ensure main script
+	-- Ensure main script
     if not file_exists(checkpatch_file) then
         if curl_get(
             "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/checkpatch.pl",
@@ -104,7 +152,64 @@ local function install_checkpatch()
     return checkpatch_file
 end
 
+local function get_remarks()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local diag = vim.diagnostic.get(bufnr)
+	local filteredDiag = table.filter(diag,
+		function (element, key, index)
+			return element.source == "checkpatch"
+		end
+		)
+	return filteredDiag
+end
+
+function M.next_remark()
+  local remarks = get_remarks()
+  if #remarks == 0 then
+    print("No remarks")
+    return
+  end
+
+  current_index = current_index + 1
+  if current_index > #remarks then
+    current_index = 1
+  end
+
+  local err = remarks[current_index]
+  vim.api.nvim_win_set_cursor(0, {err.lnum + 1, err.col})
+  vim.notify(err.message, vim.log.levels.ERROR)
+end
+
+function M.prev_remark()
+  local remarks = get_remarks()
+  if #remarks == 0 then
+    print("No remarks found")
+    return
+  end
+
+  current_index = current_index - 1
+  if current_index < 1 then
+    current_index = #remarks
+  end
+
+  local err = remarks[current_index]
+  local log_level = (err.severity == vim.diagnostic.severity.ERROR) and vim.log.levels.ERROR or vim.log.levels.WARN
+
+  vim.api.nvim_win_set_cursor(0, {err.lnum + 1, err.col})
+  vim.notify(err.message, log_level)
+end
+
 -- main execution function
+local function shell_escape_dquote(str)
+    return (str or ""):gsub('"', '\\"')
+end
+
+local function get_repo_root(start_dir)
+    local out = vim.fn.systemlist({ "git", "-C", start_dir, "rev-parse", "--show-toplevel" })
+    if vim.v.shell_error ~= 0 or not out or #out == 0 then return nil end
+    return out[1]
+end
+
 function M.run(cfg)
     local buf = vim.api.nvim_get_current_buf()
     local file = vim.api.nvim_buf_get_name(buf)
@@ -130,7 +235,25 @@ function M.run(cfg)
 		opts = opts .. "--codespell "
 	end
 
-    local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. file)
+    local handle
+    if cfg.diff then
+        local file_dir = vim.fn.fnamemodify(file, ":p:h")
+        local repo_root = get_repo_root(file_dir)
+        if not repo_root then
+            if not cfg.quiet then
+                vim.notify("checkpatch: not a git repo; falling back to file mode", vim.log.levels.WARN)
+            end
+            handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
+        else
+            local base = cfg.diff_base or "HEAD"
+            local esc_repo = '"' .. shell_escape_dquote(repo_root) .. '"'
+            local esc_file = '"' .. shell_escape_dquote(file) .. '"'
+            local cmd = "git -C " .. esc_repo .. " diff " .. base .. " -- " .. esc_file .. " | perl " .. checkpatch_path .. " " .. opts .. "-"
+            handle = io.popen(cmd)
+        end
+    else
+        handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
+    end
 	-- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
 	if not handle then
 		print("Error opening the file")
@@ -165,7 +288,12 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
             no_tree = vim.tbl_contains(args, "no-tree"),
             quiet = vim.tbl_contains(args, "quiet"),
             filem = vim.tbl_contains(args, "check-all"),
+            diff = vim.tbl_contains(args, "diff"),
         }
+        for _, a in ipairs(args) do
+            local base = a:match("^base=(.+)$") or a:match("^diff_base=(.+)$") or a:match("^ref=(.+)$")
+            if base then overrides.diff_base = base end
+        end
         for k, v in pairs(overrides) do cfg[k] = v end
         cfg = set_last_cfg(cfg)
     end

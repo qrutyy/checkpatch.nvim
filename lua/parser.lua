@@ -20,7 +20,7 @@ function parse_checkpatch(output)
                         end_lnum = lnum0,
                         col = start_col,
                         end_col = end_col,
-                        message = (msg:gsub("%s+$", "")),
+                        message = ("CP: ".. msg:gsub("%s+$", "")),
                         severity = severity,
                         source = "checkpatch",
                     })
