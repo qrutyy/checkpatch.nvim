@@ -1,6 +1,7 @@
 require "parser"
 
 local M = {}
+local current_index = 0
 
 -- namespace for diagnostics
 M.ns = vim.api.nvim_create_namespace("checkpatch")
@@ -19,16 +20,28 @@ local function set_last_cfg(cfg)
 	return cfg
 end
 
+table.filter = function(array, filterIterator)
+   local result = {}
+
+   for key, value in pairs(array) do
+      if filterIterator(value, key, array) then
+		 table.insert(result,value)
+	  end
+   end
+
+   return result
+end
+
 function DiagnosticIndicator()
     local counts = vim.diagnostic.get_count(0)
     
-    if not counts or (counts.error == 0 and counts.warn == 0) then
+    if not counts or (counts.remark == 0 and counts.warn == 0) then
         return "" 
     end
 
     local parts = {}
     if counts.error and counts.error > 0 then
-        table.insert(parts, " " .. counts.error)
+        table.insert(parts, " " .. counts.remark)
     end
     if counts.warn and counts.warn > 0 then
         table.insert(parts, " " .. counts.warn)
@@ -104,7 +117,57 @@ local function install_checkpatch()
     return checkpatch_file
 end
 
--- main execution function
+    return checkpatch_file
+end
+
+local function get_remarks()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local diag = vim.diagnostic.get(bufnr)
+	local filteredDiag = table.filter(diag,
+		function (element, key, index)
+			return element.source == "checkpatch"
+		end
+		)
+	return filteredDiag
+end
+
+function M.next_remark()
+  local remarks = get_remarks()
+  if #remarks == 0 then
+    print("No remarks")
+    return
+  end
+
+  current_index = current_index + 1
+  if current_index > #remarks then
+    current_index = 1
+  end
+
+  local err = remarks[current_index]
+  vim.api.nvim_win_set_cursor(0, {err.lnum + 1, err.col})
+  vim.notify(err.message, vim.log.levels.ERROR)
+end
+
+function M.prev_remark()
+  local remarks = get_remarks()
+  if #remarks == 0 then
+    print("No remarks found")
+    return
+  end
+
+  current_index = current_index - 1
+  if current_index < 1 then
+    current_index = #remarks
+  end
+
+  local err = remarks[current_index]
+  local log_level = (err.severity == vim.diagnostic.severity.ERROR) and vim.log.levels.ERROR or vim.log.levels.WARN
+
+  vim.api.nvim_win_set_cursor(0, {err.lnum + 1, err.col})
+  vim.notify(err.message, log_level)
+end
+
+
 function M.run(cfg)
     local buf = vim.api.nvim_get_current_buf()
     local file = vim.api.nvim_buf_get_name(buf)
