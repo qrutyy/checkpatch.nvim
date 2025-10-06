@@ -2,8 +2,6 @@
 
 A checkpatch plugin for Neovim. Nothing more. Nothing less.
 
-[Features](#features) • [Install](#install) 
-
 ## Installation
 
 ### lazy.nvim
