@@ -89,7 +89,7 @@ local function install_checkpatch()
         return true
     end
 
-    -- Ensure main script
+	-- Ensure main script
     if not file_exists(checkpatch_file) then
         if curl_get(
             "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/checkpatch.pl",
@@ -113,9 +113,6 @@ local function install_checkpatch()
             const_structs_file
         )
     end
-
-    return checkpatch_file
-end
 
     return checkpatch_file
 end
@@ -193,7 +190,8 @@ function M.run(cfg)
 		opts = opts .. "--codespell "
 	end
 
-    local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. file)
+    local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
+	print("perl" .. checkpatch_path .. " " .. opts .. file)
 	-- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
 	if not handle then
 		print("Error opening the file")
