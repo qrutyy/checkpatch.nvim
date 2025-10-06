@@ -191,7 +191,6 @@ function M.run(cfg)
 	end
 
     local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
-	print("perl" .. checkpatch_path .. " " .. opts .. file)
 	-- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
 	if not handle then
 		print("Error opening the file")
