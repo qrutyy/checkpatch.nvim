@@ -89,10 +89,10 @@ local function install_checkpatch()
         return true
     end
 
-    -- Ensure main script
+	-- Ensure main script
     if not file_exists(checkpatch_file) then
         if curl_get(
-		"https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl",
+            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/checkpatch.pl",
             checkpatch_file
         ) then
             vim.fn.system({"chmod", "+x", checkpatch_file})
@@ -102,10 +102,18 @@ local function install_checkpatch()
     -- Ensure aux files that checkpatch expects when certain flags are used
     if not file_exists(spelling_file) then
         curl_get(
-"https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt",
+            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/spelling.txt",
             spelling_file
         )
     end
+
+    if not file_exists(const_structs_file) then
+        curl_get(
+            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/const_structs.checkpatch",
+            const_structs_file
+        )
+    end
+
 
     return checkpatch_file
 end
@@ -183,7 +191,7 @@ function M.run(cfg)
 		opts = opts .. "--codespell "
 	end
 
-    local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. file)
+    local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
 	print("perl" .. checkpatch_path .. " " .. opts .. file)
 	-- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
 	if not handle then
