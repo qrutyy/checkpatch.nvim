@@ -60,6 +60,7 @@ Simple ah
 
 ```vim
 :Checkpatch [options]
+Example - :Checkpatch log strict codespell no-tree
 ```
 
 Default keymaps (can be overridden in setup):
@@ -76,4 +77,4 @@ Default keymaps (can be overridden in setup):
 - `quiet` - guess what (always on save)
 - `check-all` - check all the files in the current directory (**WIP**)
 
-If you with no options - it will use the prev cached config.
+If you execute it with no options (same with hotkey) - it will use the prev cached config.
