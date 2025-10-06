@@ -1,6 +1,41 @@
 require "parser"
 
 local M = {}
+local configured = false
+
+local default_config = {
+mappings = {
+run = { keys = "<leader>cp", desc = "Run checkpatch" },
+next = { keys = ",", desc = "Next checkpatch remark" },
+prev = { keys = "<", desc = "Prev checkpatch remark" },
+},
+}
+
+function M.setup(opts)
+if configured then return end
+local ok_tbl, tbl = pcall(require, "vim.tbl")
+local cfg
+if ok_tbl then
+cfg = vim.tbl_deep_extend("force", default_config, opts or {})
+else
+cfg = default_config
+end
+
+local map = vim.keymap.set
+local km = cfg.mappings or {}
+if km.run and km.run.keys then
+map("n", km.run.keys, ":Checkpatch<CR>", { silent = true, desc = km.run.desc or "Run checkpatch" })
+end
+if km.next and km.next.keys then
+map("n", km.next.keys, function() require("plugins.checkpatch").next_remark() end, { silent = true, desc = km.next.desc or "Next checkpatch remark" })
+end
+if km.prev and km.prev.keys then
+map("n", km.prev.keys, function() require("plugins.checkpatch").prev_remark() end, { silent = true, desc = km.prev.desc or "Prev checkpatch remark" })
+end
+
+configured = true
+end
+
 local current_index = 0
 
 -- namespace for diagnostics
@@ -166,6 +201,16 @@ function M.prev_remark()
 end
 
 -- main execution function
+local function shell_escape_dquote(str)
+    return (str or ""):gsub('"', '\\"')
+end
+
+local function get_repo_root(start_dir)
+    local out = vim.fn.systemlist({ "git", "-C", start_dir, "rev-parse", "--show-toplevel" })
+    if vim.v.shell_error ~= 0 or not out or #out == 0 then return nil end
+    return out[1]
+end
+
 function M.run(cfg)
     local buf = vim.api.nvim_get_current_buf()
     local file = vim.api.nvim_buf_get_name(buf)
@@ -191,7 +236,25 @@ function M.run(cfg)
 		opts = opts .. "--codespell "
 	end
 
-    local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
+    local handle
+    if cfg.diff then
+        local file_dir = vim.fn.fnamemodify(file, ":p:h")
+        local repo_root = get_repo_root(file_dir)
+        if not repo_root then
+            if not cfg.quiet then
+                vim.notify("checkpatch: not a git repo; falling back to file mode", vim.log.levels.WARN)
+            end
+            handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
+        else
+            local base = cfg.diff_base or "HEAD"
+            local esc_repo = '"' .. shell_escape_dquote(repo_root) .. '"'
+            local esc_file = '"' .. shell_escape_dquote(file) .. '"'
+            local cmd = "git -C " .. esc_repo .. " diff " .. base .. " -- " .. esc_file .. " | perl " .. checkpatch_path .. " " .. opts .. "-"
+            handle = io.popen(cmd)
+        end
+    else
+        handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. "--file " .. file)
+    end
 	-- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
 	if not handle then
 		print("remark opening the file")
@@ -226,7 +289,12 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
             no_tree = vim.tbl_contains(args, "no-tree"),
             quiet = vim.tbl_contains(args, "quiet"),
             filem = vim.tbl_contains(args, "check-all"),
+            diff = vim.tbl_contains(args, "diff"),
         }
+        for _, a in ipairs(args) do
+            local base = a:match("^base=(.+)$") or a:match("^diff_base=(.+)$") or a:match("^ref=(.+)$")
+            if base then overrides.diff_base = base end
+        end
         for k, v in pairs(overrides) do cfg[k] = v end
         cfg = set_last_cfg(cfg)
     end
