@@ -1,6 +1,7 @@
 require "parser"
 
 local M = {}
+local current_index = 0
 
 -- namespace for diagnostics
 M.ns = vim.api.nvim_create_namespace("checkpatch")
@@ -19,16 +20,28 @@ local function set_last_cfg(cfg)
 	return cfg
 end
 
+table.filter = function(array, filterIterator)
+   local result = {}
+
+   for key, value in pairs(array) do
+      if filterIterator(value, key, array) then
+		 table.insert(result,value)
+	  end
+   end
+
+   return result
+end
+
 function DiagnosticIndicator()
     local counts = vim.diagnostic.get_count(0)
     
-    if not counts or (counts.error == 0 and counts.warn == 0) then
+    if not counts or (counts.remark == 0 and counts.warn == 0) then
         return "" 
     end
 
     local parts = {}
-    if counts.error and counts.error > 0 then
-        table.insert(parts, " " .. counts.error)
+    if counts.remark and counts.remark > 0 then
+        table.insert(parts, " " .. counts.remark)
     end
     if counts.warn and counts.warn > 0 then
         table.insert(parts, " " .. counts.warn)
@@ -44,7 +57,7 @@ local function write_log(data)
     local filename = log_dir .. "/log_" .. os.date("%Y-%m-%d_%H-%M") .. ".txt"
     local file, err = io.open(filename, "w")
     if not file then
-        print("Error opening log file:", err)
+        print("remark opening log file:", err)
         return
     end
 
@@ -69,7 +82,7 @@ local function install_checkpatch()
     -- Download helper (synchronous)
     local function curl_get(url, dest)
         vim.fn.system({ "curl", "-sSL", "-o", dest, url })
-        if vim.v.shell_error ~= 0 then
+        if vim.v.shell_remark ~= 0 then
             print("Failed to download: " .. url)
             return false
         end
@@ -79,7 +92,7 @@ local function install_checkpatch()
     -- Ensure main script
     if not file_exists(checkpatch_file) then
         if curl_get(
-            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/checkpatch.pl",
+		"https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl",
             checkpatch_file
         ) then
             vim.fn.system({"chmod", "+x", checkpatch_file})
@@ -89,19 +102,59 @@ local function install_checkpatch()
     -- Ensure aux files that checkpatch expects when certain flags are used
     if not file_exists(spelling_file) then
         curl_get(
-            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/spelling.txt",
+"https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt",
             spelling_file
         )
     end
 
-    if not file_exists(const_structs_file) then
-        curl_get(
-            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/const_structs.checkpatch",
-            const_structs_file
-        )
-    end
-
     return checkpatch_file
+end
+
+local function get_remarks()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local diag = vim.diagnostic.get(bufnr)
+	local filteredDiag = table.filter(diag,
+		function (element, key, index)
+			return element.source == "checkpatch"
+		end
+		)
+	return filteredDiag
+end
+
+function M.next_remark()
+  local remarks = get_remarks()
+  if #remarks == 0 then
+    print("No remarks")
+    return
+  end
+
+  current_index = current_index + 1
+  if current_index > #remarks then
+    current_index = 1
+  end
+
+  local err = remarks[current_index]
+  vim.api.nvim_win_set_cursor(0, {err.lnum + 1, err.col})
+  vim.notify(err.message, vim.log.levels.ERROR)
+end
+
+function M.prev_remark()
+  local remarks = get_remarks()
+  if #remarks == 0 then
+    print("No remarks found")
+    return
+  end
+
+  current_index = current_index - 1
+  if current_index < 1 then
+    current_index = #remarks
+  end
+
+  local err = remarks[current_index]
+  local log_level = (err.severity == vim.diagnostic.severity.ERROR) and vim.log.levels.ERROR or vim.log.levels.WARN
+
+  vim.api.nvim_win_set_cursor(0, {err.lnum + 1, err.col})
+  vim.notify(err.message, log_level)
 end
 
 -- main execution function
@@ -131,15 +184,17 @@ function M.run(cfg)
 	end
 
     local handle = io.popen("perl " .. checkpatch_path .. " " .. opts .. file)
+	print("perl" .. checkpatch_path .. " " .. opts .. file)
 	-- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
 	if not handle then
-		print("Error opening the file")
+		print("remark opening the file")
 	end
 
     local result = handle:read("*a")
     handle:close()
 
     if cfg.log then
+		print(result)
 		write_log(result)
 	end
 
