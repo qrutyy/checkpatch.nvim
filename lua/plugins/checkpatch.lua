@@ -1,6 +1,6 @@
-local utils = require "utils"
-local config = require "config"
-local parser = require "parser"
+local utils = require "plugins.utils"
+local config = require "plugins.config"
+local parser = require "plugins.parser"
 
 local M = {}
 -- namespace for diagnostics
@@ -19,7 +19,7 @@ local default_key_config = {
 function M.setup(opts)
     if configured then return end
 
-	
+	local _ = config.init_cfg()
 
     local ok_tbl, _ = pcall(require, "vim.tbl")
     local key_cfg
@@ -144,12 +144,8 @@ end
 
 vim.api.nvim_create_user_command("Checkpatch", function(opts)
     local args = opts.fargs
-    local cfg = config.get_last_cfg()
-
-	if !vim.tbl_contains(args, "set") then
-		M.run(cfg)
-		return
-	end
+    local last_cfg = config.init_cfg()
+	local cfg
 
     if #args > 0 then
         local overrides = {
@@ -167,12 +163,13 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
             if base then overrides.diff_base = base end
         end
         for k, v in pairs(overrides) do cfg[k] = v end
-		if (vim.tbl_contains(args, "set")) then
+		if vim.tbl_contains(args, "set") then
 			config.set_last_cfg(cfg)
 		end
+		M.run(cfg)
     end
 
-    M.run(cfg)
+    M.run(last_cfg)
 
 end, {desc = "Highlights the checkpatch msg in buf", nargs = "*"})
 
@@ -180,7 +177,7 @@ end, {desc = "Highlights the checkpatch msg in buf", nargs = "*"})
 vim.api.nvim_create_autocmd("BufWritePost", {
     pattern = "*.c",
     callback = function()
-        local cfg = config.get_last_cfg()
+        local cfg = config.init_cfg()
         cfg.quiet = true
 		cfg.diff = true
         M.run(cfg)
