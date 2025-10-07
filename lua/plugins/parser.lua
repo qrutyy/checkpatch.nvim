@@ -1,4 +1,6 @@
-function parse_checkpatch(output)
+local M = {}
+
+function M.parse_result(output)
     local diagnostics = {}
 
     for line in output:gmatch("[^\r\n]+") do
@@ -7,9 +9,10 @@ function parse_checkpatch(output)
         if lnum and sev and msg then
             -- skip noisy commit log messages
             if not string.find(msg, "Commit log lines", 1, true) then
-                local severity = (sev == "ERROR" and vim.diagnostic.severity.ERROR)
-                or (sev == "WARNING" and vim.diagnostic.severity.WARN)
-                or nil
+                local severity = (sev == "ERROR" and
+                                     vim.diagnostic.severity.ERROR) or
+                                     (sev == "WARNING" and
+                                         vim.diagnostic.severity.WARN) or nil
 
                 if severity then
                     local lnum0 = math.max(tonumber(lnum) - 1, 0)
@@ -20,9 +23,9 @@ function parse_checkpatch(output)
                         end_lnum = lnum0,
                         col = start_col,
                         end_col = end_col,
-                        message = ("CP: ".. msg:gsub("%s+$", "")),
+                        message = ("CP: " .. msg:gsub("%s+$", "")),
                         severity = severity,
-                        source = "checkpatch",
+                        source = "checkpatch"
                     })
                 end
             end
@@ -31,3 +34,5 @@ function parse_checkpatch(output)
 
     return diagnostics
 end
+
+return M
