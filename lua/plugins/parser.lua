@@ -1,4 +1,6 @@
-function parse_checkpatch(output)
+local M = {}
+
+function parse_result(output)
     local diagnostics = {}
 
     for line in output:gmatch("[^\r\n]+") do
@@ -32,3 +34,5 @@ function parse_checkpatch(output)
 
     return diagnostics
 end
+
+return M
