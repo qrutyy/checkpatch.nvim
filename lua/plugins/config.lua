@@ -3,14 +3,12 @@ local M = {}
 local config_path = vim.fn.stdpath("data") .. "/checkpatch_last_cfg.json"
 
 function M.load_cfg()
-	local f = io.open(config_path, "r")
-		if not f then
-			return nil
-		end
+    local f = io.open(config_path, "r")
+    if not f then return nil end
 
-		local content = f:read("*a")
-		f:close()
-	return content
+    local content = f:read("*a")
+    f:close()
+    return content
 end
 
 function M.init_cfg()
@@ -29,19 +27,15 @@ function M.init_cfg()
     end
 
     vim.g.checkpatch_last_cfg = cfg
-	return cfg
+    return cfg
 end
 
 function M.get_last_cfg()
     local vim_cfg = vim.g.checkpatch_last_cfg
-    if type(vim_cfg) == "table" then
-        return vim_cfg
-    end
+    if type(vim_cfg) == "table" then return vim_cfg end
 
     local content = M.load_cfg()
-    if not content or content == "" then
-        return nil
-    end
+    if not content or content == "" then return nil end
 
     local ok, cfg = pcall(vim.fn.json_decode, content)
     if ok and type(cfg) == "table" then
@@ -61,9 +55,10 @@ function M.set_last_cfg(cfg)
     if f then
         f:write(json)
         f:close()
-		print("saved")
+        print("saved")
     else
-        vim.notify("Failed to save checkpatch config to " .. config_path, vim.log.levels.ERROR)
+        vim.notify("Failed to save checkpatch config to " .. config_path,
+                   vim.log.levels.ERROR)
     end
 end
 

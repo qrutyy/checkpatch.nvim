@@ -67,7 +67,9 @@ end
 function M.get_remarks()
     local bufnr = vim.api.nvim_get_current_buf()
     -- Explicitly scope to our namespace to avoid mixing with other sources
-    local diag = vim.diagnostic.get(bufnr, { namespace = require("plugins.checkpatch").ns })
+    local diag = vim.diagnostic.get(bufnr, {
+        namespace = require("plugins.checkpatch").ns
+    })
     local filteredDiag = table.filter(diag, function(element, key, index)
         return element.source == "checkpatch"
     end)

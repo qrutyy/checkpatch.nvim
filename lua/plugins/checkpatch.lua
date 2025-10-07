@@ -19,7 +19,7 @@ local default_key_config = {
 function M.setup(opts)
     if configured then return end
 
-	local _ = config.init_cfg()
+    local _ = config.init_cfg()
 
     local ok_tbl, _ = pcall(require, "vim.tbl")
     local key_cfg
@@ -89,9 +89,8 @@ function M.run(cfg)
     local file = vim.api.nvim_buf_get_name(buf)
     if file == "" then
         if not cfg.quiet then
-            vim.notify("Buffer is empty. Open some file.",
-                       vim.log.levels.INFO)
-			return
+            vim.notify("Buffer is empty. Open some file.", vim.log.levels.INFO)
+            return
         end
     end
 
@@ -106,25 +105,20 @@ function M.run(cfg)
 
     local handle
     if cfg.diff then
-		local base_commit = cfg.diff_base or ""
-		local cmd = string.format(
-			"git diff %s | perl %s %s --file %s",
-			base_commit,
-			checkpatch_path,
-			opts or "",
-			file
-		)
-		handle = io.popen(cmd)
+        local base_commit = cfg.diff_base or ""
+        local cmd = string.format("git diff %s | perl %s %s --file %s",
+                                  base_commit, checkpatch_path, opts or "", file)
+        handle = io.popen(cmd)
     else
         handle = io.popen(
                      "perl " .. checkpatch_path .. " " .. opts .. "--file " ..
                          file)
     end
     -- This function is system dependent and is not available on all platforms. (lua 5.1 ref manual)
-	if not handle then
-		vim.notify("Failed to run checkpatch command", vim.log.levels.ERROR)
-		return
-	end
+    if not handle then
+        vim.notify("Failed to run checkpatch command", vim.log.levels.ERROR)
+        return
+    end
 
     local result = handle:read("*a")
     handle:close()
@@ -145,7 +139,7 @@ end
 vim.api.nvim_create_user_command("Checkpatch", function(opts)
     local args = opts.fargs
     local last_cfg = config.init_cfg()
-	local cfg
+    local cfg
 
     if #args > 0 then
         local overrides = {
@@ -163,10 +157,8 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
             if base then overrides.diff_base = base end
         end
         for k, v in pairs(overrides) do cfg[k] = v end
-		if vim.tbl_contains(args, "set") then
-			config.set_last_cfg(cfg)
-		end
-		M.run(cfg)
+        if vim.tbl_contains(args, "set") then config.set_last_cfg(cfg) end
+        M.run(cfg)
     end
 
     M.run(last_cfg)
@@ -179,13 +171,10 @@ vim.api.nvim_create_autocmd("BufWritePost", {
     callback = function()
         local cfg = config.init_cfg()
         cfg.quiet = true
-		cfg.diff = true
+        cfg.diff = true
         M.run(cfg)
     end
 })
 
 return M
-
-
-
 
