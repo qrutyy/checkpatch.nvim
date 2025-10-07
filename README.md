@@ -13,7 +13,7 @@ A checkpatch plugin for Neovim. Nothing more. Nothing less.
   cmd = { "Checkpatch" },
   opts = {
     -- you can override default keymaps here
-    -- mappings = { run = { keys = "<leader>cp" }, next = { keys = "]m" }, prev = { keys = "[m" } }
+    -- mappings = { run = { keys = "<leader>cp" }, next = { keys = "," }, prev = { keys = "<" } }
   },
   config = function(_, opts)
     require("plugins.checkpatch").setup(opts)
@@ -58,7 +58,11 @@ Simple ah
 
 ```vim
 :Checkpatch [options]
-Example - :Checkpatch log strict codespell no-tree
+```
+
+Example:
+```vim
+:Checkpatch set log strict codespell no-tree diff
 ```
 
 Default keymaps (can be overridden in setup):
@@ -68,11 +72,12 @@ Default keymaps (can be overridden in setup):
 - `shift` + `,`: Previous checkpatch remark
 
 ## Options
+- `set` - to set & remember the options configuration
 - `log` - save stdout to file in (`~/.local/share/nvim/checkpatch-logs/`)
 - `no-tree` - run outside of kernel source tree
 - `codespell` - use codespell
 - `strict` - strict mode
 - `quiet` - guess what (always on save)
-- `check-all` - check all the files in the current directory (**WIP**)
+- `diff` - check only the diff on the current branch
 
 If you execute it with no options (same with hotkey) - it will use the prev cached config.
