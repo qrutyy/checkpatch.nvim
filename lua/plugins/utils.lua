@@ -1,4 +1,6 @@
-function write_log(data)
+local M = {}
+
+function M.write_log(data)
     local log_dir = vim.fn.stdpath("data") .. "/checkpatch-logs"
     vim.fn.mkdir(log_dir, "p") -- create dir if missing
 
@@ -13,13 +15,13 @@ function write_log(data)
     file:close()
 end
 
-function file_exists(path)
+function M.file_exists(path)
     local f = io.open(path, "r")
     if f then f:close() end
     return f ~= nil
 end
 
-function install_checkpatch()
+function M.install_checkpatch()
     local script_dir = vim.fn.stdpath("data") .. "/checkpatch-scripts"
     vim.fn.mkdir(script_dir, "p")
 
@@ -38,7 +40,7 @@ function install_checkpatch()
     end
 
     -- Ensure main script
-    if not file_exists(checkpatch_file) then
+    if not M.file_exists(checkpatch_file) then
         if curl_get(
             "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/checkpatch.pl",
             checkpatch_file) then
@@ -47,13 +49,13 @@ function install_checkpatch()
     end
 
     -- Ensure aux files that checkpatch expects when certain flags are used
-    if not file_exists(spelling_file) then
+    if not M.file_exists(spelling_file) then
         curl_get(
             "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/spelling.txt",
             spelling_file)
     end
 
-    if not file_exists(const_structs_file) then
+    if not M.file_exists(const_structs_file) then
         curl_get(
             "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/const_structs.checkpatch",
             const_structs_file)
@@ -62,9 +64,10 @@ function install_checkpatch()
     return checkpatch_file
 end
 
-function get_remarks()
+function M.get_remarks()
     local bufnr = vim.api.nvim_get_current_buf()
-    local diag = vim.diagnostic.get(bufnr)
+    -- Explicitly scope to our namespace to avoid mixing with other sources
+    local diag = vim.diagnostic.get(bufnr, { namespace = require("plugins.checkpatch").ns })
     local filteredDiag = table.filter(diag, function(element, key, index)
         return element.source == "checkpatch"
     end)
@@ -84,7 +87,7 @@ table.filter = function(array, filterIterator)
 end
 
 --- WIP
-function DiagnosticIndicator()
+function M.DiagnosticIndicator()
     local counts = vim.diagnostic.get_count(0)
 
     if not counts or (counts.remark == 0 and counts.warn == 0) then return "" end
@@ -100,3 +103,4 @@ function DiagnosticIndicator()
     return table.concat(parts, " ")
 end
 
+return M

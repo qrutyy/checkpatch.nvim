@@ -1,6 +1,6 @@
 local M = {}
 
-function parse_result(output)
+function M.parse_result(output)
     local diagnostics = {}
 
     for line in output:gmatch("[^\r\n]+") do

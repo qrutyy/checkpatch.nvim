@@ -13,32 +13,44 @@ function M.load_cfg()
 	return content
 end
 
-function M.get_last_cfg()
-	local vim_cfg = vim.g.checkpatch_last_cfg
-	if type(vim_cfg) ~= "table" then
-		local content = M.load_cfg()
+function M.init_cfg()
+    local cfg = M.get_last_cfg()
 
-		local ok, cfg = pcall(vim.fn.json_decode, content)
+    if not cfg then
+        cfg = {
+            strict = false,
+            codespell = false,
+            log = false,
+            no_tree = true,
+            quiet = false,
+            diff = true
+        }
+        M.set_last_cfg(cfg)
+    end
 
-		if ok then
-			vim.g.checkpatch_last_cfg = cfg
-			return cfg
-		else
-			local def_cfg = {
-				strict = false,
-				codespell = false,
-				log = false,
-				no_tree = false,
-				quiet = false,
-				diff = true
-			}
-			return def_cfg
-		end
-	else
-		return vim_cfg
-	end
+    vim.g.checkpatch_last_cfg = cfg
+	return cfg
 end
 
+function M.get_last_cfg()
+    local vim_cfg = vim.g.checkpatch_last_cfg
+    if type(vim_cfg) == "table" then
+        return vim_cfg
+    end
+
+    local content = M.load_cfg()
+    if not content or content == "" then
+        return nil
+    end
+
+    local ok, cfg = pcall(vim.fn.json_decode, content)
+    if ok and type(cfg) == "table" then
+        vim.g.checkpatch_last_cfg = cfg
+        return cfg
+    end
+
+    return nil
+end
 
 function M.set_last_cfg(cfg)
     vim.g.checkpatch_last_cfg = cfg
@@ -49,6 +61,7 @@ function M.set_last_cfg(cfg)
     if f then
         f:write(json)
         f:close()
+		print("saved")
     else
         vim.notify("Failed to save checkpatch config to " .. config_path, vim.log.levels.ERROR)
     end
