@@ -39,7 +39,7 @@ function M.parse_result(output, diff_mode, patch_file)
 
         if patch_lnum and sev and msg then
             local severity = ({
-				CHECK = vim.diagnostic.severity.HINT,
+                CHECK = vim.diagnostic.severity.HINT,
                 ERROR = vim.diagnostic.severity.ERROR,
                 WARNING = vim.diagnostic.severity.WARN,
                 INFO = vim.diagnostic.severity.INFO
@@ -49,7 +49,8 @@ function M.parse_result(output, diff_mode, patch_file)
             if severity and diff_mode then
                 local found = false
                 local prev = 0
-
+				
+				-- idc that looks shitty
                 if diff_mode and hunks then
                     for _, h in pairs(hunks) do
                         found = false
@@ -72,17 +73,17 @@ function M.parse_result(output, diff_mode, patch_file)
                             source = "checkpatch"
                         })
                     end
-				end
-                elseif severity then
-					table.insert(diagnostics, {
-						lnum = lnum0 + 1,
-						end_lnum = lnum0 + 1,
-						col = 0,
-						end_col = 1,
-						message = ("CP: " .. msg:gsub("%s+$", "")),
-						severity = severity,
-						source = "checkpatch"
-					})
+                end
+            elseif severity then
+                table.insert(diagnostics, {
+                    lnum = lnum0 + 1,
+                    end_lnum = lnum0 + 1,
+                    col = 0,
+                    end_col = 1,
+                    message = ("CP: " .. msg:gsub("%s+$", "")),
+                    severity = severity,
+                    source = "checkpatch"
+                })
             end
         end
     end

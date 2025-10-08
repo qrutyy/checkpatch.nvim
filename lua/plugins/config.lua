@@ -15,7 +15,7 @@ function M.init_cfg()
     local cfg = M.get_last_cfg()
 
     if not cfg then
-		print("Failed to get last_cfg")
+        print("Failed to get last_cfg")
         cfg = {
             strict = false,
             codespell = false,
@@ -23,7 +23,7 @@ function M.init_cfg()
             no_tree = true,
             quiet = false,
             diff = false,
-			on_save = false
+            on_save = false
         }
         M.set_last_cfg(cfg)
     end
