@@ -136,7 +136,7 @@ function M.run(cfg)
     handle:close()
 
     if cfg.log then utils.write_log(result) end
-	print(result)
+	-- print(result)
 
     local diagnostics = parser.parse_result(result, cfg.diff, tmp_patch)
 
