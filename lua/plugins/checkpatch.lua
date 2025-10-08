@@ -3,10 +3,12 @@ local config = require "plugins.config"
 local parser = require "plugins.parser"
 
 local M = {}
+
 -- namespace for diagnostics
 M.ns = vim.api.nvim_create_namespace("checkpatch")
 
-local CHECKPATCH_GROUP = vim.api.nvim_create_augroup("CheckpatchAuto", { clear = true })
+local CHECKPATCH_GROUP = vim.api.nvim_create_augroup("CheckpatchAuto",
+                                                     {clear = true})
 local configured = false
 
 local default_key_config = {
@@ -88,7 +90,7 @@ end
 function M.run(cfg)
     local buf = vim.api.nvim_get_current_buf()
     local file = vim.api.nvim_buf_get_name(buf)
-	local tmp_patch
+    local tmp_patch
 
     if file == "" then
         if not cfg.quiet then
@@ -107,20 +109,18 @@ function M.run(cfg)
     if cfg.codespell then opts = opts .. "--codespell " end
 
     local handle
-	if cfg.diff then
-		local base_commit = cfg.diff_base or ""
-		tmp_patch = vim.fn.tempname() .. ".patch"
-		local diff_cmd = string.format("git diff --unified=0 %s -- %s > %s", base_commit, file, tmp_patch)
-		os.execute(diff_cmd)
+    if cfg.diff then
+        local base_commit = cfg.diff_base or ""
+        tmp_patch = vim.fn.tempname() .. ".patch"
+        local diff_cmd = string.format("git diff --unified=0 %s -- %s > %s",
+                                       base_commit, file, tmp_patch)
+        os.execute(diff_cmd)
 
-		local cmd = string.format("perl %s %s %s",
-			checkpatch_path,
-			opts or "",
-			tmp_patch
-		)
+        local cmd = string.format("perl %s %s %s", checkpatch_path, opts or "",
+                                  tmp_patch)
 
-		--	print("[checkpatch diff-mode] " .. cmd)
-		handle = io.popen(cmd)
+        --	print("[checkpatch diff-mode] " .. cmd)
+        handle = io.popen(cmd)
     else
         handle = io.popen(
                      "perl " .. checkpatch_path .. " " .. opts .. "--file " ..
@@ -136,7 +136,7 @@ function M.run(cfg)
     handle:close()
 
     if cfg.log then utils.write_log(result) end
-	-- print(result)
+    -- print(result)
 
     local diagnostics = parser.parse_result(result, cfg.diff, tmp_patch)
 
@@ -161,7 +161,7 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
             log = vim.tbl_contains(args, "log"),
             no_tree = vim.tbl_contains(args, "no-tree"),
             quiet = vim.tbl_contains(args, "quiet"),
-            diff = vim.tbl_contains(args, "diff"),
+            diff = vim.tbl_contains(args, "diff")
         }
         for _, a in ipairs(args) do
             local base =
@@ -170,22 +170,24 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
             if base then overrides.diff_base = base end
         end
         for k, v in pairs(overrides) do cfg[k] = v end
-		last_cfg = cfg
+        last_cfg = cfg
     end
 
-	if vim.tbl_contains(args, "on-save") then
-		last_cfg.on_save = true
-		config.set_last_cfg(last_cfg)
-		M.enable_on_save()
-	end
+    if vim.tbl_contains(args, "on-save") then
+        last_cfg.on_save = true
+        config.set_last_cfg(last_cfg)
+        M.enable_on_save()
+    end
 
-	if vim.tbl_contains(args, "on-save-off") then
-		last_cfg.on_save = false
-		config.set_last_cfg(last_cfg)
-		M.disable_on_save()
-	end
+    if vim.tbl_contains(args, "on-save-off") then
+        last_cfg.on_save = false
+        config.set_last_cfg(last_cfg)
+        M.disable_on_save()
+    end
 
-    if #args > 0 and vim.tbl_contains(args, "set") then config.set_last_cfg(cfg) end
+    if #args > 0 and vim.tbl_contains(args, "set") then
+        config.set_last_cfg(cfg)
+    end
 
     M.run(last_cfg)
 
@@ -201,13 +203,13 @@ function M.enable_on_save()
             cfg.quiet = true
             M.run(cfg)
         end,
-        desc = "Run checkpatch automatically on C file save",
+        desc = "Run checkpatch automatically on C file save"
     })
     vim.notify("checkpatch: auto-run enabled", vim.log.levels.INFO)
 end
 
 function M.disable_on_save()
-    vim.api.nvim_clear_autocmds({ group = CHECKPATCH_GROUP })
+    vim.api.nvim_clear_autocmds({group = CHECKPATCH_GROUP})
     vim.notify("checkpatch: auto-run disabled", vim.log.levels.INFO)
 end
 
@@ -215,11 +217,11 @@ vim.api.nvim_create_autocmd("VimEnter", {
     callback = function()
         local ok, checkpatch = pcall(require, "plugins.checkpatch")
         if ok then
-            checkpatch.setup()  -- sets up mappings and loads last_cfg
+            checkpatch.setup() -- sets up mappings and loads last_cfg
         else
             vim.notify("Failed to load checkpatch.nvim", vim.log.levels.ERROR)
         end
-    end,
+    end
 })
 
 -- M.setup()
