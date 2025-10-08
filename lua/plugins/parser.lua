@@ -29,7 +29,7 @@ end
 function M.parse_result(output, diff_mode, patch_file)
     local diagnostics = {}
 
-    -- парсим патч и строим карту строк patch → src
+	-- parse patch and build patch_string -> src map
     local hunks, _ = {}, {}
     if diff_mode and patch_file then
         hunks, _ = parse_patch_hunks(patch_file)
@@ -51,7 +51,6 @@ function M.parse_result(output, diff_mode, patch_file)
 				local found = false
 				local prev = 0
 
-                -- сопоставляем patch line → исходник
                 if diff_mode and hunks then
                     for _, h in pairs(hunks) do
 						found = false

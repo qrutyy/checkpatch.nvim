@@ -15,13 +15,15 @@ function M.init_cfg()
     local cfg = M.get_last_cfg()
 
     if not cfg then
+		print("Failed to get last_cfg")
         cfg = {
             strict = false,
             codespell = false,
             log = false,
             no_tree = true,
             quiet = false,
-            diff = true
+            diff = false,
+			on_save = false
         }
         M.set_last_cfg(cfg)
     end
@@ -55,7 +57,6 @@ function M.set_last_cfg(cfg)
     if f then
         f:write(json)
         f:close()
-        print("saved")
     else
         vim.notify("Failed to save checkpatch config to " .. config_path,
                    vim.log.levels.ERROR)
