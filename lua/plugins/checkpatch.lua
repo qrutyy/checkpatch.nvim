@@ -22,7 +22,10 @@ local default_key_config = {
 function M.setup(opts)
     if configured then return end
 
-    local _ = config.init_cfg()
+    local loaded_cfg = config.init_cfg()
+	if loaded_cfg.on_save then
+		M.enable_on_save()
+	end
 
     local ok_tbl, _ = pcall(require, "vim.tbl")
     local key_cfg
@@ -186,7 +189,7 @@ vim.api.nvim_create_user_command("Checkpatch", function(opts)
     end
 
     if #args > 0 and vim.tbl_contains(args, "set") then
-        config.set_last_cfg(cfg)
+        config.set_last_cfg(last_cfg)
     end
 
     M.run(last_cfg)
