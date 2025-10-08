@@ -68,7 +68,7 @@ Example:
 Default keymaps (can be overridden in setup):
 
 - <leader>cp: Run :Checkpatch
-- `.`: Next checkpatch remark
+- `,`: Next checkpatch remark
 - `shift` + `,`: Previous checkpatch remark
 
 ## Options
@@ -79,5 +79,7 @@ Default keymaps (can be overridden in setup):
 - `strict` - strict mode
 - `quiet` - guess what (always on save)
 - `diff` - check only the diff on the current branch
+- `on-save` - sets last cfg (in case no `set` option isn't used) as on-save. Note that this mode is highly recommended to be used with `diff` option to prevent lags bc of checkpatch work.
+- `on-save-off` - disables on-save mode.
 
 If you execute it with no options (same with hotkey) - it will use the prev cached config.
